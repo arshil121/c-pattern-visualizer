@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Pattern → C Code Visualizer</title>
+<style>
+:root{--bg:#f4f5fb;--card:#fff;--ink:#1c2033;--mut:#6b7190;--line:#e2e5f0;--acc:#5b5bf0;--ok:#0fa37f;--hl:#fff1b8;--code:#f1f3fa;--out:#0f1224;--oi:#8ff2c4;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media(prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#0d0f1e;--card:#171a30;--ink:#e8eaf8;--mut:#8f95b8;--line:#2a2e4d;--acc:#8b8bff;--ok:#3ddcaa;--hl:#3a3560;--code:#101226;--out:#07080f;--oi:#8ff2c4}}
+:root[data-theme="dark"]{--bg:#0d0f1e;--card:#171a30;--ink:#e8eaf8;--mut:#8f95b8;--line:#2a2e4d;--acc:#8b8bff;--ok:#3ddcaa;--hl:#3a3560;--code:#101226;--out:#07080f;--oi:#8ff2c4}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+.wrap{max-width:1250px;margin:auto;padding:18px}
+header{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:14px}
+h1{font-size:22px;margin:0}h1 span{color:var(--acc)}
+h2{font-size:13px;letter-spacing:.08em;text-transform:uppercase;color:var(--mut);margin:0 0 10px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px;margin-bottom:16px}
+button{font:inherit;cursor:pointer;border:1px solid var(--line);background:var(--card);color:var(--ink);border-radius:9px;padding:7px 13px;transition:.15s}
+button:hover{border-color:var(--acc)}button.p{background:var(--acc);color:#fff;border-color:var(--acc)}
+button:disabled{opacity:.4;cursor:default}
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px}.chips button{font-size:13px;padding:4px 10px;border-radius:99px}
+.top{display:grid;gap:14px;grid-template-columns:1fr}
+@media(min-width:900px){.top{grid-template-columns:1fr 1.3fr}.main{display:grid;grid-template-columns:1.05fr 1fr;gap:16px}}
+textarea{width:100%;height:190px;font:16px/1.3 ui-monospace,Menlo,Consolas,monospace;background:var(--code);color:var(--ink);border:1px solid var(--line);border-radius:10px;padding:10px;resize:vertical;white-space:pre}
+.hint{font-size:12.5px;color:var(--mut);margin:8px 0}
+.code{background:var(--code);border-radius:10px;font:13.5px/1.65 ui-monospace,Menlo,Consolas,monospace;max-height:560px;overflow:auto;position:relative}
+.ln{display:flex;white-space:pre;padding-right:12px;border-left:3px solid transparent}
+.ln .tx{white-space:pre;tab-size:4;flex:1}.ln{min-width:max-content}.ln i{color:var(--mut);width:34px;text-align:right;padding-right:12px;flex:none;font-style:normal;user-select:none}
+.ln.on{background:var(--hl);border-left-color:var(--acc)}
+.k{color:#d6409f;font-weight:600}.s{color:#0d8a6a}.n{color:#c27a00}.c{color:var(--mut)}.f{color:#3b6cf0}
+.vars{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:12px}
+.v{border:1px solid var(--line);border-radius:12px;text-align:center;padding:8px 4px;background:var(--code)}
+.v b{display:block;font:700 28px ui-monospace,Menlo,monospace;color:var(--acc)}.v small{color:var(--mut);font-size:12px}
+.v.chg{animation:pop .5s;border-color:var(--acc)}@keyframes pop{0%{transform:scale(1)}35%{transform:scale(1.14);background:var(--hl)}100%{transform:scale(1)}}
+.msg{min-height:68px;background:var(--code);border-left:4px solid var(--acc);border-radius:8px;padding:10px 12px;margin-bottom:12px}
+.out{background:var(--out);color:var(--oi);border-radius:12px;padding:14px;min-height:150px;font:22px/1.25 ui-monospace,Menlo,Consolas,monospace;overflow:auto;white-space:nowrap}
+.out span{display:inline-block;width:.62em;text-align:center}.out .sp{opacity:.18}
+.out .new{background:var(--oi);color:var(--out);border-radius:3px;animation:in .35s}@keyframes in{from{transform:scale(.3)}to{transform:scale(1)}}
+.out .cur{display:inline-block;width:.1em;height:1em;background:var(--oi);vertical-align:-2px;animation:b 1s steps(2) infinite}@keyframes b{50%{opacity:0}}
+.ctl{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-top:12px}
+input[type=range]{accent-color:var(--acc)}#sl{flex:1;min-width:120px}
+.badge{font-size:13px;margin-left:8px}.good{color:var(--ok)}.bad{color:#e5484d}
+</style></head><body><div class="wrap">
+<header><h1>Pattern <span>→</span> C Code Visualizer</h1><button id="th">🌓 Theme</button></header>
+<div class="top">
+ <div class="card"><h2>1 · Type your pattern</h2>
+  <div class="chips" id="chips"></div>
+  <textarea id="inp" spellcheck="false"></textarea>
+  <div class="hint">Draw the pattern exactly as it should print (spaces matter). Works for stars, numbers, letters, hollow shapes, diamonds, spaced patterns.</div>
+  <button class="p" id="gen">⚡ Generate C code</button></div>
+ <div class="card"><h2>2 · Generated C code <span class="badge" id="bd"></span> <button id="cp" style="float:right;padding:3px 10px;font-size:12px">Copy</button></h2>
+  <div class="code" id="code" style="max-height:300px"></div></div>
+</div>
+<div class="card"><h2>3 · Step-by-step visualization</h2><div class="main">
+ <div><div class="code" id="code2"></div></div>
+ <div>
+  <div class="vars" id="vars"></div>
+  <div class="msg" id="msg"></div>
+  <div class="out" id="out"></div>
+  <div class="ctl"><button id="rs">⏮ Reset</button><button id="pv">◀ Prev</button><button class="p" id="nx">Next ▶</button><button id="nr">Next row ⏭</button><button id="pl">▶ Play</button>
+   <label style="font-size:13px;color:var(--mut)">Speed <input type="range" id="sp" min="1" max="10" value="4"></label></div>
+  <div class="ctl"><input type="range" id="sl" min="0" value="0"><span id="cnt" style="font-size:13px;color:var(--mut)"></span></div>
+ </div></div></div>
+</div>
+<script>
+const $=s=>document.querySelector(s);
+const PRE={'Right triangle':'*\n**\n***\n****\n*****','Pyramid':'    *\n   ***\n  *****\n *******\n*********','Inverted':'*****\n****\n***\n**\n*','Number triangle':'1\n12\n123\n1234\n12345','Row numbers':'1\n22\n333\n4444','Diamond':'  *\n ***\n*****\n ***\n  *','Hollow square':'*****\n*   *\n*   *\n*   *\n*****','Hollow pyramid':'    *\n   * *\n  *   *\n *     *\n*********','Spaced stars':'* * * *\n* * *\n* *\n*','Alphabet':'A\nAB\nABC\nABCD'};
+let steps=[],cur=0,timer=null,N=0,srcLines=[],codeText='';
+const esc=s=>s.replace(/\\/g,'\\\\').replace(/"/g,'\\"').replace(/%/g,'%%');
+const html=s=>s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+function hl(l){return html(l).replace(/(\/\/.*$)|("(?:[^"\\]|\\.)*")|(#include.*)|\b(int|for|if|else|return)\b|\b(\d+)\b|\b(printf|main)\b/g,(m,a,b,c,d,e,f)=>a?`<span class=c>${m}</span>`:b?`<span class=s>${m}</span>`:c?`<span class=k>${m}</span>`:d?`<span class=k>${m}</span>`:e?`<span class=n>${m}</span>`:`<span class=f>${m}</span>`)}
+function paint(el,lines){el.innerHTML=lines.map((t,x)=>`<div class="ln"><i>${x+1}</i><span class="tx">${hl(t)||' '}</span></div>`).join('')}
+function cands(it,sep,r,k){const c=it.length,f=sep?'s':'n';
+ if(it.every(x=>x===it[0]))k['char:'+it[0]+':'+f]=c;
+ if(it.every((x,i)=>x==i+1))k['asc:'+f]=c;
+ if(it.every(x=>x==r))k['row:'+f]=c;
+ if(it.every((x,i)=>x===String.fromCharCode(65+i)))k['alpha:'+f]=c;
+ if(it.every(x=>x===String.fromCharCode(64+r)))k['alrow:'+f]=c}
+function term(ts){let s='';ts.forEach(([c,v])=>{if(!c)return;const a=Math.abs(c),b=v?(a===1?v:a+'*'+v):''+a;s+=(s?(c<0?' - ':' + '):(c<0?'-':''))+b});return s||'0'}
+function expr(a,b){let k=0;if((a!==0&&Math.abs(b-N)<=1)||(a===0&&b===N))k=1;return term([[k,'n'],[a,'i'],[b-k*N,'']])}
+function tok(id,i,j,cnt){const t=id.split(':')[0];
+ if(t=='char')return id.slice(5,-2);if(t=='asc')return''+j;if(t=='row')return''+i;
+ if(t=='alpha')return String.fromCharCode(64+j);if(t=='alrow')return String.fromCharCode(64+i);
+ return(j==1||j==cnt)?id.slice(7):' '}
+function build(){
+ stop();
+ let lines=$('#inp').value.replace(/\r/g,'').split('\n').map(l=>l.replace(/\t/g,'    ').replace(/\s+$/,'')).filter(l=>l.length);
+ if(!lines.length)return;
+ const m=Math.min(...lines.map(l=>l.search(/\S/)));lines=lines.map(l=>l.slice(m));N=lines.length;srcLines=lines;
+ const rows=lines.map((l,x)=>{const lead=l.search(/\S/),body=l.slice(lead),r=x+1,k={},ch=[...body];
+  if(!body.includes(' '))cands(ch,false,r,k);
+  const tk=body.split(' ');if(tk.length>1&&tk.every(t=>t))cands(tk,true,r,k);
+  if(ch.length==1)cands(ch,true,r,k);
+  if(ch[0]!==' '&&ch[0]===ch[ch.length-1]&&ch.slice(1,-1).every(c=>c===' '))k['hollow:'+ch[0]]=ch.length;
+  return{lead,k}});
+ const ph=[];
+ const okf=(a,b,id)=>{for(let x=a;x<=b;x++)if(!(id in rows[x].k))return false;if(b-a<2)return true;
+  const d1=rows[a+1].lead-rows[a].lead,d2=rows[a+1].k[id]-rows[a].k[id];
+  for(let x=a+1;x<b;x++)if(rows[x+1].lead-rows[x].lead!==d1||rows[x+1].k[id]-rows[x].k[id]!==d2)return false;return true};
+ for(let r=0;r<rows.length;){let ids=Object.keys(rows[r].k);
+  if(!ids.length){ph.push({a:r,b:r,raw:lines[r]});r++;continue}
+  let e=r;while(e+1<rows.length&&ids.some(id=>okf(r,e+1,id)))e++;
+  ids=ids.filter(id=>okf(r,e,id));const id=ids[0],g=e>r,aL=g?rows[r+1].lead-rows[r].lead:0,pC=g?rows[r+1].k[id]-rows[r].k[id]:0;
+  ph.push({a:r,b:e,id,aL,bL:rows[r].lead-aL*(r+1),pC,qC:rows[r].k[id]-pC*(r+1)});r=e+1}
+ const L=[];const add=t=>(L.push(t),L.length-1);
+ steps=[];let out='';const V={n:N,i:null,s:null,j:null};
+ const push=(line,msg,ch,ad='',row=false)=>{out+=ad;steps.push({line,msg,v:{...V},out,ch,ad,row})};
+ add('#include <stdio.h>');add('');add('int main() {');
+ const decl=add(`    int n = ${N}, i, j, s;   // n = number of rows`);add('');
+ push(decl,`Start: <b>n = ${N}</b> (the pattern has ${N} rows). Variables <b>i</b> (row), <b>s</b> (spaces) and <b>j</b> (columns) are declared.`,['n']);
+ ph.forEach(p=>{
+  if(p.raw!==undefined){const ln=add(`    printf("${esc(p.raw)}\\n");   // custom row`);V.i=p.a+1;V.s=V.j=null;
+   push(ln,`Row ${p.a+1} doesn't follow a loop rule, so it is printed directly.`,['i'],p.raw+'\n',true);return}
+  const id=p.id,t=id.split(':')[0],sep=t!='hollow'&&id.slice(-1)=='s',r0=p.a+1,r1=p.b+1,r1t=r1===N?'n':r1;
+  const lt=expr(p.aL,p.bL),ct=expr(p.pC,p.qC);
+  add(`    // rows ${r0} to ${r1t}`);
+  const fi=add(`    for (i = ${r0}; i <= ${r1t}; i++) {`);
+  let fs=-1,ps=-1;if(p.aL||p.bL){fs=add(`        for (s = 1; s <= ${lt}; s++)`);ps=add(`            printf(" ");`)}
+  const cl=ct;let b1,b2=-1;
+  add(`        for (j = 1; j <= ${cl}; j++)`+(t=='hollow'?'':''));
+  const X=id.slice(5,-2),sp=sep?' ':'';
+  if(t=='hollow'){add(`            if (j == 1 || j == ${cl})`);b1=add(`                printf("${esc(id.slice(7))}");`);add(`            else`);b2=add(`                printf(" ");`)}
+  else b1=add('            '+({char:`printf("${esc(X)}${sp}");`,asc:`printf("%d${sp}", j);`,row:`printf("%d${sp}", i);`,alpha:`printf("%c${sp}", 'A' + j - 1);`,alrow:`printf("%c${sp}", 'A' + i - 1);`})[t]);
+  const nl=add(`        printf("\\n");`);add('    }');
+  for(let r=p.a;r<=p.b;r++){const i=r+1,lead=p.aL*i+p.bL,cnt=p.pC*i+p.qC;V.i=i;V.s=null;V.j=null;
+   push(fi,`<b>Outer loop</b>: i = ${i} → we are printing <b>row ${i}</b> (condition i ≤ ${r1t} is true). ${lead?`This row needs <b>${lt} = ${lead}</b> leading space(s).`:'No leading spaces needed.'}`,['i'],'',true);
+   for(let s=1;s<=lead;s++){V.s=s;push(ps,`<b>Space loop</b>: s = ${s}, runs while s ≤ ${lt} (= ${lead}) → print one space.`,['s'],' ')}
+   for(let j=1;j<=cnt;j++){V.j=j;const c=tok(id,i,j,cnt),show=c===' '?'a space':`"${c}"`;let why=`<b>Column loop</b>: j = ${j}, runs while j ≤ ${ct} (= ${cnt}) → prints ${show}`;
+    if(t=='hollow')why+=(j==1||j==cnt)?` (j is the first or last column, so print the symbol)`:` (j is an inner column, so print a space)`;
+    push(c===' '&&b2>=0?b2:b1,why,['j'],c+(sep?' ':''))}
+   V.j=cnt+1;push(nl,`j becomes ${cnt+1}, which is greater than ${cnt} → column loop ends. <b>printf("\\n")</b> moves the cursor to the next line.`,['j'],'\n')}
+ });
+ const rt=add('    return 0;');add('}');
+ push(rt,'🎉 Finished! All rows are printed. Compare the output with your pattern.',[]);
+ codeText=L.join('\n');paint($('#code'),L);paint($('#code2'),L);
+ const got=steps[steps.length-1].out.split('\n').map(l=>l.replace(/\s+$/,'')).filter(l=>l.length||0);
+ const ok=got.length===srcLines.length&&got.every((l,x)=>l===srcLines[x]);
+ $('#bd').innerHTML=ok?'<span class="good">✓ output matches your pattern</span>':'<span class="bad">⚠ output differs slightly from your pattern</span>';
+ $('#vars').innerHTML=['n','i','s','j'].map(k=>`<div class="v" id="v${k}"><small>${{n:'n · rows',i:'i · row',s:'s · spaces',j:'j · column'}[k]}</small><b>–</b></div>`).join('');
+ $('#sl').max=steps.length-1;cur=0;show()}
+function show(){const st=steps[cur];
+ $('#sl').value=cur;$('#cnt').textContent=`Step ${cur+1} / ${steps.length}`;
+ document.querySelectorAll('#code2 .ln').forEach((e,x)=>e.classList.toggle('on',x===st.line));
+ const box=$('#code2'),el=box.children[st.line];if(el)box.scrollTop=el.offsetTop-box.clientHeight/2;
+ ['n','i','s','j'].forEach(k=>{const d=$('#v'+k);d.querySelector('b').textContent=st.v[k]==null?'–':st.v[k];d.classList.remove('chg');if(st.ch.includes(k)){void d.offsetWidth;d.classList.add('chg')}});
+ $('#msg').innerHTML=st.msg;
+ const o=st.out,n=st.ad.length;let h='';
+ [...o].forEach((c,x)=>{const isNew=x>=o.length-n&&c!=='\n'&&n>0;h+=c==='\n'?'<br>':c===' '?`<span class="sp${isNew?' new':''}">·</span>`:`<span class="${isNew?'new':''}">${html(c)}</span>`});
+ $('#out').innerHTML=h+'<i class="cur"></i>';
+ $('#pv').disabled=cur==0;$('#nx').disabled=$('#nr').disabled=cur==steps.length-1}
+const go=x=>{cur=Math.max(0,Math.min(steps.length-1,x));show()};
+function stop(){clearInterval(timer);timer=null;$('#pl').textContent='▶ Play'}
+$('#nx').onclick=()=>go(cur+1);$('#pv').onclick=()=>go(cur-1);$('#rs').onclick=()=>{stop();go(0)};
+$('#nr').onclick=()=>{let k=cur+1;while(k<steps.length-1&&!steps[k].row)k++;go(k)};
+$('#sl').oninput=e=>{stop();go(+e.target.value)};
+$('#pl').onclick=()=>{if(timer)return stop();if(cur>=steps.length-1)go(0);$('#pl').textContent='⏸ Pause';
+ const tick=()=>{if(cur>=steps.length-1)return stop();go(cur+1)};timer=setInterval(tick,1100-$('#sp').value*100)};
+$('#sp').oninput=()=>{if(timer){stop();$('#pl').click()}};
+$('#gen').onclick=build;
+$('#cp').onclick=()=>{navigator.clipboard&&navigator.clipboard.writeText(codeText);$('#cp').textContent='Copied ✓';setTimeout(()=>$('#cp').textContent='Copy',1200)};
+$('#th').onclick=()=>{const d=document.documentElement,dark=d.dataset.theme?d.dataset.theme==='dark':matchMedia('(prefers-color-scheme:dark)').matches;d.dataset.theme=dark?'light':'dark'};
+document.addEventListener('keydown',e=>{if(e.target.tagName==='TEXTAREA')return;if(e.key==='ArrowRight')go(cur+1);if(e.key==='ArrowLeft')go(cur-1)});
+$('#chips').innerHTML=Object.keys(PRE).map(k=>`<button>${k}</button>`).join('');
+$('#chips').onclick=e=>{if(e.target.tagName==='BUTTON'){$('#inp').value=PRE[e.target.textContent];build()}};
+$('#inp').value=PRE['Pyramid'];build();
+</script></body></html>
