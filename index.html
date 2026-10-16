@@ -39,112 +39,192 @@ textarea{width:100%;height:190px;font:16px/1.3 ui-monospace,Menlo,Consolas,monos
 .ctl{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-top:12px}
 input[type=range]{accent-color:var(--acc)}#sl{flex:1;min-width:120px}
 .badge{font-size:13px;margin-left:8px}.good{color:var(--ok)}.bad{color:#e5484d}
+.tabs{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px}.tabs button{font-size:13px}
+select{font:inherit;background:var(--card);color:var(--ink);border:1px solid var(--line);border-radius:9px;padding:6px 8px}
+#ed{height:430px;font-size:13.5px;line-height:1.6;margin:0}
+.vars{grid-template-columns:repeat(auto-fit,minmax(80px,1fr))}.v b{font-size:24px;overflow:hidden}
+.ai{display:grid;gap:8px;grid-template-columns:1fr 1fr;margin:10px 0 4px}.ai select,.ai input{width:100%;font:inherit;font-size:13px;background:var(--code);color:var(--ink);border:1px solid var(--line);border-radius:9px;padding:6px 8px}#st{min-height:20px}.lb{display:inline-block;background:var(--acc);color:#fff;border-radius:6px;padding:0 7px;font-size:12px;margin-right:6px}
 </style></head><body><div class="wrap">
 <header><h1>Pattern <span>→</span> C Code Visualizer</h1><button id="th">🌓 Theme</button></header>
 <div class="top">
  <div class="card"><h2>1 · Type your pattern</h2>
   <div class="chips" id="chips"></div>
   <textarea id="inp" spellcheck="false"></textarea>
-  <div class="hint">Draw the pattern exactly as it should print (spaces matter). Works for stars, numbers, letters, hollow shapes, diamonds, spaced patterns.</div>
+  <div class="hint">Draw the pattern exactly as it should print (spaces matter).</div><div class="hint" id="st"></div>
   <button class="p" id="gen">⚡ Generate C code</button></div>
- <div class="card"><h2>2 · Generated C code <span class="badge" id="bd"></span> <button id="cp" style="float:right;padding:3px 10px;font-size:12px">Copy</button></h2>
+ <div class="card"><h2>2 · Three ways to write the C code <button id="cp" style="float:right;padding:3px 10px;font-size:12px">Copy</button></h2>
+  <div class="tabs" id="tabs"></div><div class="hint" id="desc" style="margin-top:0"></div>
   <div class="code" id="code" style="max-height:300px"></div></div>
 </div>
-<div class="card"><h2>3 · Step-by-step visualization</h2><div class="main">
- <div><div class="code" id="code2"></div></div>
- <div>
-  <div class="vars" id="vars"></div>
-  <div class="msg" id="msg"></div>
-  <div class="out" id="out"></div>
+<div class="card"><h2>3 · Step-by-step visualization <span class="badge" id="bd"></span></h2>
+ <div class="ctl" style="margin:0 0 12px"><label>Code to run: <select id="sel"><option value="0">Approach 1 · nested for</option><option value="1">Approach 2 · grid scan</option><option value="2">Approach 3 · while loops</option><option value="3">✍ My own code</option></select></label>
+  <button id="eb">✏ Edit code</button><button class="p" id="runb" style="display:none">▶ Run this code</button></div>
+ <div class="main"><div><div class="code" id="code2"></div><textarea id="ed" style="display:none" spellcheck="false"></textarea>
+  <div class="hint">Your own code can use int/char/float variables, for, while, do-while, if/else, break/continue, printf and putchar. Functions, arrays and scanf are not supported yet.</div></div>
+ <div><div class="vars" id="vars"></div><div class="msg" id="msg"></div><div class="out" id="out"></div>
   <div class="ctl"><button id="rs">⏮ Reset</button><button id="pv">◀ Prev</button><button class="p" id="nx">Next ▶</button><button id="nr">Next row ⏭</button><button id="pl">▶ Play</button>
    <label style="font-size:13px;color:var(--mut)">Speed <input type="range" id="sp" min="1" max="10" value="4"></label></div>
-  <div class="ctl"><input type="range" id="sl" min="0" value="0"><span id="cnt" style="font-size:13px;color:var(--mut)"></span></div>
- </div></div></div>
+  <div class="ctl"><input type="range" id="sl" min="0" value="0"><span id="cnt" style="font-size:13px;color:var(--mut)"></span></div></div></div></div>
 </div>
 <script>
 const $=s=>document.querySelector(s);
-const PRE={'Right triangle':'*\n**\n***\n****\n*****','Pyramid':'    *\n   ***\n  *****\n *******\n*********','Inverted':'*****\n****\n***\n**\n*','Number triangle':'1\n12\n123\n1234\n12345','Row numbers':'1\n22\n333\n4444','Diamond':'  *\n ***\n*****\n ***\n  *','Hollow square':'*****\n*   *\n*   *\n*   *\n*****','Hollow pyramid':'    *\n   * *\n  *   *\n *     *\n*********','Spaced stars':'* * * *\n* * *\n* *\n*','Alphabet':'A\nAB\nABC\nABCD'};
-let steps=[],cur=0,timer=null,N=0,srcLines=[],codeText='';
+const PRE={'Right triangle':'*\n**\n***\n****\n*****','Pyramid':'    *\n   ***\n  *****\n *******\n*********','Inverted':'*****\n****\n***\n**\n*','Number triangle':'1\n12\n123\n1234\n12345','Row numbers':'1\n22\n333\n4444','Diamond':'  *\n ***\n*****\n ***\n  *','Hollow square':'*****\n*   *\n*   *\n*   *\n*****','Hollow pyramid':'    *\n   * *\n  *   *\n *     *\n*********','Spaced stars':'* * * *\n* * *\n* *\n*','Alphabet':'A\nAB\nABC\nABCD','Binary triangle':'0\n1 1\n0 0 0\n1 1 1 1\n0 0 0 0 0','Binary rows':'1 1 1\n0 0 0\n1 1 1\n0 0 0'};
+const DESC=['Print the leading spaces with one loop, then the symbols with another. The most common textbook way.','Scan every column of every row and use if / else to decide: print a symbol or a space. Good for learning conditions.','Same logic as Approach 1 but with while loops, so initialization, condition and update are visible separately.'];
+const STARTER='#include <stdio.h>\n\nint main() {\n    int i, j;\n    for (i = 1; i <= 5; i++) {\n        for (j = 1; j <= i; j++) {\n            printf("*");\n        }\n        printf("\\n");\n    }\n    return 0;\n}';
+let gens=[],ok=[],mode=0,userCode='',activeCode='',steps=[],cur=0,timer=null,N=0,srcLines=[],names=[],lastErr='';
+class Stop{}
 const esc=s=>s.replace(/\\/g,'\\\\').replace(/"/g,'\\"').replace(/%/g,'%%');
-const html=s=>s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
-function hl(l){return html(l).replace(/(\/\/.*$)|("(?:[^"\\]|\\.)*")|(#include.*)|\b(int|for|if|else|return)\b|\b(\d+)\b|\b(printf|main)\b/g,(m,a,b,c,d,e,f)=>a?`<span class=c>${m}</span>`:b?`<span class=s>${m}</span>`:c?`<span class=k>${m}</span>`:d?`<span class=k>${m}</span>`:e?`<span class=n>${m}</span>`:`<span class=f>${m}</span>`)}
+const html=s=>String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+const fv=v=>v===null?'?':typeof v=='number'?Math.round(v*1e6)/1e6:v;
+function hl(l){return html(l).replace(/(\/\/.*$)|("(?:[^"\\]|\\.)*")|(#include.*)|\b(int|char|float|double|for|while|do|if|else|return|break|continue)\b|\b(\d+)\b|\b(printf|putchar|main)\b/g,(m,a,b,c,d,e)=>a?`<span class=c>${m}</span>`:b?`<span class=s>${m}</span>`:c||d?`<span class=k>${m}</span>`:e?`<span class=n>${m}</span>`:`<span class=f>${m}</span>`)}
 function paint(el,lines){el.innerHTML=lines.map((t,x)=>`<div class="ln"><i>${x+1}</i><span class="tx">${hl(t)||' '}</span></div>`).join('')}
+/* ---------- pattern analysis ---------- */
 function cands(it,sep,r,k){const c=it.length,f=sep?'s':'n';
  if(it.every(x=>x===it[0]))k['char:'+it[0]+':'+f]=c;
+ if(it.every(x=>x===it[0])&&it[0].length==1)k['palt:'+f]=c;
  if(it.every((x,i)=>x==i+1))k['asc:'+f]=c;
  if(it.every(x=>x==r))k['row:'+f]=c;
  if(it.every((x,i)=>x===String.fromCharCode(65+i)))k['alpha:'+f]=c;
  if(it.every(x=>x===String.fromCharCode(64+r)))k['alrow:'+f]=c}
 function term(ts){let s='';ts.forEach(([c,v])=>{if(!c)return;const a=Math.abs(c),b=v?(a===1?v:a+'*'+v):''+a;s+=(s?(c<0?' - ':' + '):(c<0?'-':''))+b});return s||'0'}
 function expr(a,b){let k=0;if((a!==0&&Math.abs(b-N)<=1)||(a===0&&b===N))k=1;return term([[k,'n'],[a,'i'],[b-k*N,'']])}
-function tok(id,i,j,cnt){const t=id.split(':')[0];
- if(t=='char')return id.slice(5,-2);if(t=='asc')return''+j;if(t=='row')return''+i;
- if(t=='alpha')return String.fromCharCode(64+j);if(t=='alrow')return String.fromCharCode(64+i);
- return(j==1||j==cnt)?id.slice(7):' '}
-function build(){
- stop();
- let lines=$('#inp').value.replace(/\r/g,'').split('\n').map(l=>l.replace(/\t/g,'    ').replace(/\s+$/,'')).filter(l=>l.length);
- if(!lines.length)return;
- const m=Math.min(...lines.map(l=>l.search(/\S/)));lines=lines.map(l=>l.slice(m));N=lines.length;srcLines=lines;
+function analyze(lines){
  const rows=lines.map((l,x)=>{const lead=l.search(/\S/),body=l.slice(lead),r=x+1,k={},ch=[...body];
   if(!body.includes(' '))cands(ch,false,r,k);
   const tk=body.split(' ');if(tk.length>1&&tk.every(t=>t))cands(tk,true,r,k);
   if(ch.length==1)cands(ch,true,r,k);
   if(ch[0]!==' '&&ch[0]===ch[ch.length-1]&&ch.slice(1,-1).every(c=>c===' '))k['hollow:'+ch[0]]=ch.length;
-  return{lead,k}});
- const ph=[];
- const okf=(a,b,id)=>{for(let x=a;x<=b;x++)if(!(id in rows[x].k))return false;if(b-a<2)return true;
+  const u=ch.filter(c=>c!==' ');return{lead,k,c:u.length&&u.every(c=>c===u[0])?u[0]:undefined}});
+ const okf=(a,b,id)=>{for(let x=a;x<=b;x++)if(!(id in rows[x].k))return false;if(id.slice(0,4)=='palt'){if(b==a)return false;for(let x=a+1;x<=b;x++)if(rows[x].c===rows[x-1].c||(x>a+1&&rows[x].c!==rows[x-2].c))return false}if(b-a<2)return true;
   const d1=rows[a+1].lead-rows[a].lead,d2=rows[a+1].k[id]-rows[a].k[id];
   for(let x=a+1;x<b;x++)if(rows[x+1].lead-rows[x].lead!==d1||rows[x+1].k[id]-rows[x].k[id]!==d2)return false;return true};
+ const ph=[];
  for(let r=0;r<rows.length;){let ids=Object.keys(rows[r].k);
   if(!ids.length){ph.push({a:r,b:r,raw:lines[r]});r++;continue}
   let e=r;while(e+1<rows.length&&ids.some(id=>okf(r,e+1,id)))e++;
   ids=ids.filter(id=>okf(r,e,id));const id=ids[0],g=e>r,aL=g?rows[r+1].lead-rows[r].lead:0,pC=g?rows[r+1].k[id]-rows[r].k[id]:0;
-  ph.push({a:r,b:e,id,aL,bL:rows[r].lead-aL*(r+1),pC,qC:rows[r].k[id]-pC*(r+1)});r=e+1}
- const L=[];const add=t=>(L.push(t),L.length-1);
- steps=[];let out='';const V={n:N,i:null,s:null,j:null};
- const push=(line,msg,ch,ad='',row=false)=>{out+=ad;steps.push({line,msg,v:{...V},out,ch,ad,row})};
- add('#include <stdio.h>');add('');add('int main() {');
- const decl=add(`    int n = ${N}, i, j, s;   // n = number of rows`);add('');
- push(decl,`Start: <b>n = ${N}</b> (the pattern has ${N} rows). Variables <b>i</b> (row), <b>s</b> (spaces) and <b>j</b> (columns) are declared.`,['n']);
+  ph.push({a:r,b:e,id,aL,bL:rows[r].lead-aL*(r+1),pC,qC:rows[r].k[id]-pC*(r+1),c0:rows[r].c,c1:g?rows[r+1].c:rows[r].c});r=e+1}
+ return ph}
+/* ---------- code generation: 3 approaches ---------- */
+function gen(ph,sty,W){const L=[],a=t=>L.push(t),P=x=>/\s/.test(x)?`(${x})`:x;
+ a('#include <stdio.h>');a('');a('int main() {');
+ a(`    int n = ${N}, ${sty==1?`w = ${W}, i, j`:ph.some(p=>p.id&&(p.aL||p.bL))?'i, j, s':'i, j'};   // n = number of rows`);a('');
  ph.forEach(p=>{
-  if(p.raw!==undefined){const ln=add(`    printf("${esc(p.raw)}\\n");   // custom row`);V.i=p.a+1;V.s=V.j=null;
-   push(ln,`Row ${p.a+1} doesn't follow a loop rule, so it is printed directly.`,['i'],p.raw+'\n',true);return}
-  const id=p.id,t=id.split(':')[0],sep=t!='hollow'&&id.slice(-1)=='s',r0=p.a+1,r1=p.b+1,r1t=r1===N?'n':r1;
-  const lt=expr(p.aL,p.bL),ct=expr(p.pC,p.qC);
-  add(`    // rows ${r0} to ${r1t}`);
-  const fi=add(`    for (i = ${r0}; i <= ${r1t}; i++) {`);
-  let fs=-1,ps=-1;if(p.aL||p.bL){fs=add(`        for (s = 1; s <= ${lt}; s++)`);ps=add(`            printf(" ");`)}
-  const cl=ct;let b1,b2=-1;
-  add(`        for (j = 1; j <= ${cl}; j++)`+(t=='hollow'?'':''));
-  const X=id.slice(5,-2),sp=sep?' ':'';
-  if(t=='hollow'){add(`            if (j == 1 || j == ${cl})`);b1=add(`                printf("${esc(id.slice(7))}");`);add(`            else`);b2=add(`                printf(" ");`)}
-  else b1=add('            '+({char:`printf("${esc(X)}${sp}");`,asc:`printf("%d${sp}", j);`,row:`printf("%d${sp}", i);`,alpha:`printf("%c${sp}", 'A' + j - 1);`,alrow:`printf("%c${sp}", 'A' + i - 1);`})[t]);
-  const nl=add(`        printf("\\n");`);add('    }');
-  for(let r=p.a;r<=p.b;r++){const i=r+1,lead=p.aL*i+p.bL,cnt=p.pC*i+p.qC;V.i=i;V.s=null;V.j=null;
-   push(fi,`<b>Outer loop</b>: i = ${i} → we are printing <b>row ${i}</b> (condition i ≤ ${r1t} is true). ${lead?`This row needs <b>${lt} = ${lead}</b> leading space(s).`:'No leading spaces needed.'}`,['i'],'',true);
-   for(let s=1;s<=lead;s++){V.s=s;push(ps,`<b>Space loop</b>: s = ${s}, runs while s ≤ ${lt} (= ${lead}) → print one space.`,['s'],' ')}
-   for(let j=1;j<=cnt;j++){V.j=j;const c=tok(id,i,j,cnt),show=c===' '?'a space':`"${c}"`;let why=`<b>Column loop</b>: j = ${j}, runs while j ≤ ${ct} (= ${cnt}) → prints ${show}`;
-    if(t=='hollow')why+=(j==1||j==cnt)?` (j is the first or last column, so print the symbol)`:` (j is an inner column, so print a space)`;
-    push(c===' '&&b2>=0?b2:b1,why,['j'],c+(sep?' ':''))}
-   V.j=cnt+1;push(nl,`j becomes ${cnt+1}, which is greater than ${cnt} → column loop ends. <b>printf("\\n")</b> moves the cursor to the next line.`,['j'],'\n')}
+  if(p.raw!==undefined)return a(`    printf("${esc(p.raw)}\\n");   // this row is printed directly`);
+  const id=p.id,t=id.split(':')[0],sep=t!='hollow'&&id.slice(-1)=='s',X=esc(t=='char'?id.slice(5,-2):t=='hollow'?id.slice(7):''),sp=sep?' ':'',
+   r0=p.a+1,r1=p.b+1,r1t=r1===N?'n':r1,lt=expr(p.aL,p.bL),ct=expr(p.pC,p.qC),lead=p.aL||p.bL;
+  a(`    // rows ${r0} to ${r1t}`);const od=r0%2?p.c0:p.c1,ev=r0%2?p.c1:p.c0;
+  if(sty<2&&0){}
+  if(sty==1){
+   const kk=lead?`j - ${P(lt)}`:'j',span=sep?`2 * ${P(ct)}`:ct,end=lead?`${lt} + ${P(span)}`:span,idx=sep?`(${kk} + 1) / 2`:kk;
+   const cond=t=='hollow'?`j == ${lead?lt+' + 1':'1'} || j == ${end}`:(lead?`j > ${lt} && `:'')+`j <= ${end}`+(sep?` && ${P(kk)} % 2 == 1`:'');
+   const pr=t=='char'||t=='hollow'?`printf("${X}");`:{asc:`printf("%d", ${idx});`,row:'printf("%d", i);',alpha:`printf("%c", 'A' + ${P(idx)} - 1);`,alrow:`printf("%c", 'A' + i - 1);`}[t];
+   a(`    for (i = ${r0}; i <= ${r1t}; i++) {`);a('        for (j = 1; j <= w; j++)');if(t=='palt'){a(`            if (${cond}) {`);a('                if (i % 2 == 0)');a(`                    printf("${esc(ev)}");`);a('                else');a(`                    printf("${esc(od)}");`);a('            } else');a('                printf(" ");')}else{a(`            if (${cond})`);a('                '+pr);a('            else');a('                printf(" ");')}a('        printf("\\n");');a('    }');return}
+  const bl=t=='palt'?['if (i % 2 == 0)',`    printf("${esc(ev)}${sp}");`,'else',`    printf("${esc(od)}${sp}");`]:t=='hollow'?[`if (j == 1 || j == ${ct})`,`    printf("${X}");`,'else','    printf(" ");']:[{char:`printf("${X}${sp}");`,asc:`printf("%d${sp}", j);`,row:`printf("%d${sp}", i);`,alpha:`printf("%c${sp}", 'A' + j - 1);`,alrow:`printf("%c${sp}", 'A' + i - 1);`}[t]];
+  if(sty==0){a(`    for (i = ${r0}; i <= ${r1t}; i++) {`);if(lead){a(`        for (s = 1; s <= ${lt}; s++)`);a('            printf(" ");')}a(`        for (j = 1; j <= ${ct}; j++)`);bl.forEach(x=>a('            '+x));a('        printf("\\n");');a('    }')}
+  else{a(`    i = ${r0};`);a(`    while (i <= ${r1t}) {`);if(lead){a('        s = 1;');a(`        while (s <= ${lt}) {`);a('            printf(" ");');a('            s++;');a('        }')}a('        j = 1;');a(`        while (j <= ${ct}) {`);bl.forEach(x=>a('            '+x));a('            j++;');a('        }');a('        printf("\\n");');a('        i++;');a('    }')}
  });
- const rt=add('    return 0;');add('}');
- push(rt,'🎉 Finished! All rows are printed. Compare the output with your pattern.',[]);
- codeText=L.join('\n');paint($('#code'),L);paint($('#code2'),L);
- const got=steps[steps.length-1].out.split('\n').map(l=>l.replace(/\s+$/,'')).filter(l=>l.length||0);
- const ok=got.length===srcLines.length&&got.every((l,x)=>l===srcLines[x]);
- $('#bd').innerHTML=ok?'<span class="good">✓ output matches your pattern</span>':'<span class="bad">⚠ output differs slightly from your pattern</span>';
- $('#vars').innerHTML=['n','i','s','j'].map(k=>`<div class="v" id="v${k}"><small>${{n:'n · rows',i:'i · row',s:'s · spaces',j:'j · column'}[k]}</small><b>–</b></div>`).join('');
- $('#sl').max=steps.length-1;cur=0;show()}
-function show(){const st=steps[cur];
+ a('    return 0;');a('}');return L.join('\n')}
+/* ---------- mini C interpreter that records every step ---------- */
+function runC(src){
+ const tk=[],re=/(\s+|\/\/[^\n]*|\/\*[\s\S]*?\*\/|#[^\n]*)|(\d+\.?\d*)|([A-Za-z_]\w*)|('(?:\\.|[^'\\])')|("(?:\\.|[^"\\])*")|(<<=|>>=|\+\+|--|&&|\|\||==|!=|<=|>=|\+=|-=|\*=|\/=|%=|[-+*\/%<>=!(){}\[\];,?:&|.])/g;
+ let m,line=1,pos=0;
+ while(pos<src.length){re.lastIndex=pos;m=re.exec(src);if(!m||m.index!==pos)return{steps:[],err:`Line ${line}: unexpected character "${src[pos]}"`};pos=re.lastIndex;
+  if(m[1]!==undefined){line+=(m[1].match(/\n/g)||[]).length;continue}
+  tk.push({t:m[2]?'n':m[3]?'i':m[4]?'c':m[5]?'s':'o',v:m[0],l:line})}
+ const V={},T={},steps=[];let out='',p=0,ops=0;
+ const dec=s=>s.slice(1,-1).replace(/\\(.)/g,(_,c)=>({n:'\n',t:'\t','0':'\0'}[c]??c));
+ const vis=o=>'<b>“'+html(o).replace(/\n/g,'↵').replace(/ /g,'␣').replace(/\t/g,'⇥')+'”</b>';
+ const tick=()=>{if(++ops>100000)throw new Stop()};
+ function push(l,msg,ad=''){if(steps.length>=6000)throw new Stop();out+=ad;const pv=steps.length?steps[steps.length-1].v:{},ch=Object.keys(V).filter(k=>!(k in pv)||pv[k]!==V[k]);
+  steps.push({line:l,msg:msg+(ch.length&&!ad?' → '+ch.map(k=>`<b>${k} = ${fv(V[k])}</b>`).join(', '):''),v:{...V},t:{...T},out,ch,ad,row:ad.includes('\n')})}
+ const get=n=>{if(!(n in V))throw Error(`variable "${n}" is used before it is declared`);return V[n]};
+ const set=(n,v)=>{if(!(n in V))throw Error(`variable "${n}" is used before it is declared`);V[n]=T[n]=='float'?v:Math.trunc(v)};
+ const ar=(o,x,y)=>{switch(o){case'+':return x+y;case'-':return x-y;case'*':return x*y;case'/':if(!y)throw Error('division by zero');return Number.isInteger(x)&&Number.isInteger(y)?Math.trunc(x/y):x/y;case'%':if(!y)throw Error('modulo by zero');return x%y;case'<':return+(x<y);case'>':return+(x>y);case'<=':return+(x<=y);case'>=':return+(x>=y);case'==':return+(x==y);case'!=':return+(x!=y)}};
+ const pk=()=>tk[p]&&tk[p].v,nx=()=>tk[p++],eat=v=>pk()===v&&(p++,1);
+ const need=v=>{if(!eat(v)){const t=tk[p]||tk[p-1]||{l:line};throw Error(`Line ${t.l}: expected "${v}" but found "${tk[p]?tk[p].v:'end of code'}"`)}};
+ const sl=(a,b)=>tk.slice(a,b).map(t=>t.v).join(' ').replace(/(\w) (\+\+|--)/g,'$1$2').replace(/\( /g,'(').replace(/ \)/g,')').replace(/ ([;,])/g,'$1');
+ const LV=[['||'],['&&'],['==','!='],['<','>','<=','>='],['+','-'],['*','/','%']];
+ const un=()=>{const t=nx();if(!t)throw Error('The expression ended unexpectedly');
+  if(t.v=='!'){const e=un();return()=>+!e()}if(t.v=='-'){const e=un();return()=>-e()}if(t.v=='+')return un();
+  if(t.v=='++'||t.v=='--'){const n=nx().v,d=t.v=='++'?1:-1;return()=>{set(n,get(n)+d);return V[n]}}
+  if(t.v=='('){const e=asg();need(')');return e}
+  if(t.t=='n'){const x=+t.v;return()=>x}
+  if(t.t=='c'){const x=dec(t.v).charCodeAt(0);return()=>x}
+  if(t.t=='i'){if(pk()=='++'||pk()=='--'){const d=nx().v=='++'?1:-1;return()=>{const o=get(t.v);set(t.v,o+d);return o}}return()=>get(t.v)}
+  throw Error(`Line ${t.l}: unexpected "${t.v}"`)};
+ const bn=l=>{if(l==6)return un();let a=bn(l+1);while(LV[l].includes(pk())){const o=nx().v,A=a,B=bn(l+1);a=o=='||'?()=>+(A()||B()):o=='&&'?()=>+(A()&&B()):()=>ar(o,A(),B())}return a};
+ const asg=()=>{const t=tk[p],n2=tk[p+1];if(t&&t.t=='i'&&n2&&['=','+=','-=','*=','/=','%='].includes(n2.v)){p+=2;const op=n2.v,r=asg();return()=>{const v=op=='='?r():ar(op[0],get(t.v),r());set(t.v,v);return V[t.v]}}return bn(0)};
+ const cond=()=>{const a=p,f=asg(),toks=tk.slice(a,p);return{f,raw:sl(a,p),tx:()=>toks.map(t=>t.t=='i'&&t.v in V?fv(V[t.v]):t.v).join(' ')}};
+ const TY=['int','char','float','double','long','short','unsigned','signed'];
+ const decl=()=>{const a=p;let ty='int';while(TY.includes(pk())){const w=nx().v;if(w=='char')ty='char';if(w=='float'||w=='double')ty='float'}
+  const ds=[];do{const n=nx();if(!n||n.t!='i')throw Error(`Line ${(n||tk[p-1]).l}: expected a variable name`);if(pk()=='[')throw Error(`Line ${n.l}: arrays are not supported yet`);ds.push([n.v,eat('=')?asg():null])}while(eat(','));
+  return{f:()=>ds.forEach(([n,e])=>{T[n]=ty;V[n]=null;if(e){const v=e();V[n]=ty=='float'?v:Math.trunc(v)}}),raw:sl(a,p),decl:1}};
+ const simple=()=>{if(TY.includes(pk()))return decl();const a=p,fs=[asg()];while(eat(','))fs.push(asg());return{f:()=>fs.forEach(f=>f()),raw:sl(a,p)}};
+ const fmt=(s,args)=>{let k=0;return s.replace(/%([-0]?)(\d*)(?:\.(\d+))?l?([dicsfxu%])/g,(m,fl,w,pr,c)=>{if(c=='%')return'%';const a=args[k++];let r;
+  if(c=='c')r=String.fromCharCode(a);else if(c=='s')r=''+a;else if(c=='f')r=(+a).toFixed(pr===undefined?6:+pr);else if(c=='x')r=Math.trunc(a).toString(16);else r=''+Math.trunc(a);
+  return w?(fl=='-'?r.padEnd(+w):r.padStart(+w,fl=='0'?'0':' ')):r})};
+ const stmt=()=>{const t=tk[p];if(!t)throw Error('The code ended unexpectedly (a "}" may be missing)');const L=t.l,v=t.v;
+  if(eat('{')){const ss=[];while(pk()!='}'){if(p>=tk.length)throw Error('Missing closing "}"');ss.push(stmt())}p++;return()=>{for(const s of ss){const r=s();if(r)return r}}}
+  if(eat(';'))return()=>{};
+  if(v=='for'){p++;need('(');const i0=pk()==';'?null:simple();need(';');const c=pk()==';'?null:cond();need(';');const u=pk()==')'?null:simple();need(')');const b=stmt();
+   return()=>{if(i0){i0.f();push(L,`<b>for</b> loop starts → first part runs once: <b>${i0.raw}</b>`)}
+    for(;;){tick();if(c){const tx=c.tx(),o=c.f();push(L,`Check <b>${c.raw}</b> → ${tx} → <b>${o?'true: run the loop body':'false: the loop ends'}</b>`);if(!o)break}
+     const r=b();if(r=='b')break;if(r=='r')return r;if(u){u.f();push(L,`Update <b>${u.raw}</b>`)}}}}
+  if(v=='while'){p++;need('(');const c=cond();need(')');const b=stmt();
+   return()=>{for(;;){tick();const tx=c.tx(),o=c.f();push(L,`<b>while</b> check <b>${c.raw}</b> → ${tx} → <b>${o?'true: run the body':'false: the loop ends'}</b>`);if(!o)break;const r=b();if(r=='b')break;if(r=='r')return r}}}
+  if(v=='do'){p++;const b=stmt(),L2=tk[p]?tk[p].l:L;need('while');need('(');const c=cond();need(')');need(';');
+   return()=>{for(;;){tick();const r=b();if(r=='b')break;if(r=='r')return r;const tx=c.tx(),o=c.f();push(L2,`<b>do-while</b> check <b>${c.raw}</b> → ${tx} → <b>${o?'true: repeat':'false: the loop ends'}</b>`);if(!o)break}}}
+  if(v=='if'){p++;need('(');const c=cond();need(')');const a=stmt(),e=eat('else')?stmt():null;
+   return()=>{const tx=c.tx(),o=c.f();push(L,`<b>if</b> check <b>${c.raw}</b> → ${tx} → <b>${o?'true: run the if-part':'false: '+(e?'run the else-part':'skip it')}</b>`);return o?a():e&&e()}}
+  if(v=='break'){p++;need(';');return()=>(push(L,'<b>break</b> → jump out of the loop'),'b')}
+  if(v=='continue'){p++;need(';');return()=>(push(L,'<b>continue</b> → skip to the next round of the loop'),'c')}
+  if(v=='return'){p++;if(!eat(';')){asg();need(';')}return()=>(push(L,'<b>return</b> → the program ends'),'r')}
+  if(['scanf','gets','getchar'].includes(v))throw Error(`Line ${L}: ${v} (user input) is not supported yet. Put the values directly in the code.`);
+  if(v=='putchar'){p++;need('(');const e=asg();need(')');need(';');return()=>{const c=String.fromCharCode(e());push(L,`<b>putchar</b> prints ${vis(c)}`,c)}}
+  if(v=='printf'){p++;need('(');const s=nx();if(!s||s.t!='s')throw Error(`Line ${L}: printf needs a "text" in quotes first`);const f=dec(s.v),as=[];
+   while(eat(',')){if(tk[p]&&tk[p].t=='s'){const z=dec(nx().v);as.push(()=>z)}else as.push(asg())}need(')');need(';');
+   return()=>{const o=fmt(f,as.map(g=>g()));push(L,`<b>printf</b> prints ${vis(o)}`,o)}}
+  const s=simple();need(';');return()=>{s.f();push(L,s.decl?`Declare <b>${s.raw}</b>`:`Run <b>${s.raw}</b>`)}};
+ try{
+  const mi=tk.findIndex((t,x)=>t.v=='main'&&tk[x+1]&&tk[x+1].v=='(');if(mi<0)throw Error('Could not find "int main()" in the code');
+  p=mi+1;while(pk()!==')'){if(p>=tk.length)throw Error('Missing ")" after main(');p++}p++;
+  if(pk()!='{')throw Error(`Line ${tk[p]?tk[p].l:line}: expected "{" after main()`);
+  const body=stmt(),end=tk[p-1].l;
+  try{body();push(end,'🎉 <b>Program finished.</b> Compare the output with your pattern.')}
+  catch(e){if(e instanceof Stop)return{steps,trunc:1};const b=steps.length?steps[steps.length-1]:{line:1,v:{},t:{},out:''};steps.push({...b,msg:'❌ '+e.message,ch:[],ad:'',row:false});return{steps,err:e.message}}
+ }catch(e){return{steps:[],err:e.message}}
+ return{steps}}
+/* ---------- UI ---------- */
+function match(r){if(!r.steps.length||r.err||r.trunc)return false;const g=r.steps[r.steps.length-1].out.split('\n').map(l=>l.replace(/\s+$/,''));while(g.length&&!g[g.length-1])g.pop();return g.length===srcLines.length&&g.every((l,x)=>l===srcLines[x])}
+let quiet=false;
+function build(){stop();
+ let lines=$('#inp').value.replace(/\r/g,'').split('\n').map(l=>l.replace(/\t/g,'    ').replace(/\s+$/,'')).filter(l=>l.length);if(!lines.length)return;
+ const m=Math.min(...lines.map(l=>l.search(/\S/)));lines=lines.map(l=>l.slice(m));N=lines.length;srcLines=lines;
+ const ph=analyze(lines),W=Math.max(...lines.map(l=>l.length));
+ gens=[0,1,2].map(k=>gen(ph,k,W));ok=gens.map(g=>match(runC(g)));
+ $('#tabs').innerHTML=[0,1,2].map(k=>`<button>${ok[k]?'✓':'⚠'} Approach ${k+1}</button>`).join('');if(!quiet)pick(0)}
+function edit(on){$('#ed').style.display=on?'block':'none';$('#code2').style.display=on?'none':'block';$('#runb').style.display=on?'inline-block':'none';$('#eb').style.display=on?'none':'inline-block'}
+function pick(k){stop();mode=k;$('#sel').value=k;[...$('#tabs').children].forEach((b,x)=>b.classList.toggle('p',x===k));
+ if(k<3){$('#desc').textContent=DESC[k];paint($('#code'),gens[k].split('\n'));edit(false);loadCode(gens[k])}
+ else{$('#ed').value=userCode||STARTER;edit(true)}}
+function loadCode(c){activeCode=c;paint($('#code2'),c.split('\n'));const r=runC(c);steps=r.steps;lastErr=r.err||'';
+ $('#bd').innerHTML=r.err?`<span class="bad">❌ ${html(r.err)}</span>`:r.trunc?'<span class="bad">⚠ stopped after too many steps (infinite loop?)</span>':match(r)?'<span class="good">✓ output matches your pattern</span>':'<span class="bad">⚠ output differs from your pattern</span>';
+ names=[...new Set(steps.flatMap(s=>Object.keys(s.v)))].slice(0,12);
+ $('#vars').innerHTML=names.map(k=>`<div class="v"><small>${k}</small><b>–</b></div>`).join('');
+ $('#sl').max=Math.max(0,steps.length-1);cur=0;show()}
+function show(){
+ if(!steps.length){$('#msg').innerHTML='<span class="bad">'+html(lastErr)+'</span>';$('#out').innerHTML='';$('#cnt').textContent='';['rs','pv','nx','nr','pl'].forEach(x=>$('#'+x).disabled=true);return}
+ $('#rs').disabled=$('#pl').disabled=false;const st=steps[cur];
  $('#sl').value=cur;$('#cnt').textContent=`Step ${cur+1} / ${steps.length}`;
- document.querySelectorAll('#code2 .ln').forEach((e,x)=>e.classList.toggle('on',x===st.line));
- const box=$('#code2'),el=box.children[st.line];if(el)box.scrollTop=el.offsetTop-box.clientHeight/2;
- ['n','i','s','j'].forEach(k=>{const d=$('#v'+k);d.querySelector('b').textContent=st.v[k]==null?'–':st.v[k];d.classList.remove('chg');if(st.ch.includes(k)){void d.offsetWidth;d.classList.add('chg')}});
- $('#msg').innerHTML=st.msg;
+ document.querySelectorAll('#code2 .ln').forEach((e,x)=>e.classList.toggle('on',x===st.line-1));
+ const box=$('#code2'),el=box.children[st.line-1];if(el)box.scrollTop=el.offsetTop-box.clientHeight/2;
+ names.forEach((k,x)=>{const d=$('#vars').children[x],b=d.querySelector('b'),val=st.v[k];
+  b.textContent=!(k in st.v)?'–':val===null?'?':(st.t[k]=='char'&&val>=32&&val<127?`'${String.fromCharCode(val)}'`:fv(val));
+  d.classList.remove('chg');if(st.ch.includes(k)){void d.offsetWidth;d.classList.add('chg')}});
+ $('#msg').innerHTML=`<span class="lb">Line ${st.line}</span>${st.msg}`;
  const o=st.out,n=st.ad.length;let h='';
- [...o].forEach((c,x)=>{const isNew=x>=o.length-n&&c!=='\n'&&n>0;h+=c==='\n'?'<br>':c===' '?`<span class="sp${isNew?' new':''}">·</span>`:`<span class="${isNew?'new':''}">${html(c)}</span>`});
+ [...o].forEach((c,x)=>{const nw=n>0&&x>=o.length-n&&c!=='\n';h+=c==='\n'?'<br>':c===' '?`<span class="sp${nw?' new':''}">·</span>`:`<span class="${nw?'new':''}">${html(c)}</span>`});
  $('#out').innerHTML=h+'<i class="cur"></i>';
  $('#pv').disabled=cur==0;$('#nx').disabled=$('#nr').disabled=cur==steps.length-1}
 const go=x=>{cur=Math.max(0,Math.min(steps.length-1,x));show()};
@@ -152,14 +232,46 @@ function stop(){clearInterval(timer);timer=null;$('#pl').textContent='▶ Play'}
 $('#nx').onclick=()=>go(cur+1);$('#pv').onclick=()=>go(cur-1);$('#rs').onclick=()=>{stop();go(0)};
 $('#nr').onclick=()=>{let k=cur+1;while(k<steps.length-1&&!steps[k].row)k++;go(k)};
 $('#sl').oninput=e=>{stop();go(+e.target.value)};
-$('#pl').onclick=()=>{if(timer)return stop();if(cur>=steps.length-1)go(0);$('#pl').textContent='⏸ Pause';
- const tick=()=>{if(cur>=steps.length-1)return stop();go(cur+1)};timer=setInterval(tick,1100-$('#sp').value*100)};
-$('#sp').oninput=()=>{if(timer){stop();$('#pl').click()}};
-$('#gen').onclick=build;
-$('#cp').onclick=()=>{navigator.clipboard&&navigator.clipboard.writeText(codeText);$('#cp').textContent='Copied ✓';setTimeout(()=>$('#cp').textContent='Copy',1200)};
+$('#pl').onclick=()=>{if(timer)return stop();if(cur>=steps.length-1)go(0);$('#pl').textContent='⏸ Pause';timer=setInterval(()=>{if(cur>=steps.length-1)return stop();go(cur+1)},1100-$('#sp').value*100)};
+$('#sp').oninput=()=>{if(timer){stop();$('#pl').onclick()}};
+/* ---------- AI engine (fixed, hidden from the UI) with offline fallback ---------- */
+const AI_URL='https://api.groq.com/openai/v1/chat/completions';
+const AI_KEY='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';
+const AI_MODELS=['llama-3.3-70b-versatile','openai/gpt-oss-120b','llama-3.1-8b-instant'];
+const D0=DESC.slice(),N0=['Approach 1 · nested for','Approach 2 · grid scan','Approach 3 · while loops'];
+async function ask(msgs){let err;
+ for(const model of AI_MODELS){try{
+  const r=await fetch(AI_URL,{method:'POST',signal:AbortSignal.timeout?AbortSignal.timeout(90000):undefined,headers:{'Content-Type':'application/json',Authorization:'Bearer '+AI_KEY},body:JSON.stringify({model,messages:msgs,temperature:0.2})});
+  const j=await r.json().catch(()=>({}));if(!r.ok)throw Error((j.error&&(j.error.message||j.error))||'HTTP '+r.status);return j.choices[0].message.content}
+ catch(e){err=e;if(/fetch|network|abort|api key|auth|401|403/i.test(e.message))break}}
+ throw err}
+const codeOf=t=>{const m=t.match(/```[a-z]*\n([\s\S]*?)```/i);return(m?m[1]:t).trim()};
+function loading(){stop();steps=[];lastErr='';const w='<div class="hint" style="padding:18px">⏳ Generating the best C code for your pattern…</div>';$('#tabs').innerHTML='';$('#desc').textContent='';$('#code').innerHTML=w;$('#code2').innerHTML=w;$('#vars').innerHTML='';$('#bd').innerHTML='';edit(false);show()}
+async function aiBuild(){quiet=true;build();quiet=false;const st=$('#st'),btn=$('#gen');
+ loading();btn.disabled=true;D0.forEach((d,i)=>DESC[i]=d);const NM=N0.slice(),pat=srcLines.join('\n');
+ const msgs=[{role:'user',content:'You are an expert C programming teacher. Convert this printed pattern into C code. Each line is one row; spaces matter.\n\n'+pat+'\n\nReply in exactly this format for APPROACH 1, 2 and 3 and write nothing else:\n### APPROACH 1: short title | one short sentence in very simple words\n```c\n<complete C program>\n```\n\nRules:\n- Write for absolute BEGINNERS in a first C course: simple, short and easy to read. Use the common textbook way that teachers normally show. No clever tricks, no bit operations, no unusual shortcuts.\n- Give 3 different but COMMON approaches. APPROACH 1 = the standard textbook solution (the simplest and shortest). APPROACH 2 and 3 = other well-known ways, for example while loops, or one loop with an if / else.\n- If the values follow a rule (primes, odd/even numbers, squares, Fibonacci, a running counter like Floyd\'s triangle, powers...), COMPUTE them with loops and variables. Never print the numbers as literal text.\n- Keep each program short (about 10 to 25 lines). Declare only the variables really needed, with simple names (i, j, n, row, col, num, count). When rows are counted, declare n (number of rows) first.\n- Prefer for loops. Print one thing at a time with printf. No helper variables that are not needed.\n- Put one brief plain-English // comment above each loop saying what it does. No other commentary.\n- Each program is complete: #include <stdio.h>, int main(), prints exactly the pattern (trailing spaces are fine), ends with return 0.\n- Allowed only: int/char variables, for / while / do-while, if / else, + - * / %, comparisons, && || !, break, continue, printf, putchar, return 0.\n- FORBIDDEN: other functions, arrays, scanf, pointers, the ternary operator ?:, string library calls.\n- Neat formatting: 4-space indentation, one statement per line, braces around loop bodies.'}];
+ const parseA=t=>{const o=[],re=/###\s*APPROACH\s*\d*\s*[:\-]?\s*(.*)\n+```[a-z]*\n([\s\S]*?)```/gi;let m;while(m=re.exec(t)){const q=m[1].split('|');o.push({name:(q[0]||'').trim(),idea:(q.slice(1).join('|')||'').trim(),code:m[2].trim()})}return o};
+ try{st.textContent='🤖 Generating the best C code for your pattern…';
+  const txt=await ask(msgs);const A=parseA(txt).slice(0,3);if(!A.length)throw Error('could not read the AI reply');
+  for(let k=0;k<A.length;k++){let c=A[k].code,r=runC(c);
+   for(let t=0;t<2&&!match(r);t++){st.textContent=`🔧 Checking approach ${k+1} and improving it…`;
+    const got=r.err?'this error: '+r.err:'this output:\n'+r.steps[r.steps.length-1].out;
+    c=codeOf(await ask([...msgs,{role:'assistant',content:c},{role:'user',content:'That program produced '+got+'\nbut the required output is:\n'+pat+'\nFix it. Reply with only the complete corrected C program, same rules.'}]));r=runC(c)}
+   gens[k]=c;ok[k]=match(r);DESC[k]='🤖 AI · '+(A[k].idea||'');NM[k]=(A[k].name||'Approach '+(k+1)).slice(0,34)}
+  st.textContent='✓ Code generated and verified against your pattern.'
+ }catch(e){console.error(e);st.textContent='ℹ The AI could not be reached ('+String(e.message).slice(0,90)+'), so the built-in generator was used.'}
+ $('#tabs').innerHTML=[0,1,2].map(k=>`<button>${ok[k]?'✓':'⚠'} ${html(NM[k])}</button>`).join('');
+ [...$('#sel').options].forEach((o,k)=>{if(k<3)o.textContent=NM[k]});pick(0);btn.disabled=false}
+$('#gen').onclick=aiBuild;
+
+$('#tabs').onclick=e=>{const b=e.target.closest('button');if(b)pick([...$('#tabs').children].indexOf(b))};
+$('#sel').onchange=e=>pick(+e.target.value);
+$('#eb').onclick=()=>{$('#ed').value=activeCode;edit(true)};
+$('#runb').onclick=()=>{stop();userCode=$('#ed').value;mode=3;$('#sel').value=3;[...$('#tabs').children].forEach(b=>b.classList.remove('p'));edit(false);loadCode(userCode)};
+$('#cp').onclick=()=>{navigator.clipboard&&navigator.clipboard.writeText(gens[Math.min(mode,2)]);$('#cp').textContent='Copied ✓';setTimeout(()=>$('#cp').textContent='Copy',1200)};
 $('#th').onclick=()=>{const d=document.documentElement,dark=d.dataset.theme?d.dataset.theme==='dark':matchMedia('(prefers-color-scheme:dark)').matches;d.dataset.theme=dark?'light':'dark'};
-document.addEventListener('keydown',e=>{if(e.target.tagName==='TEXTAREA')return;if(e.key==='ArrowRight')go(cur+1);if(e.key==='ArrowLeft')go(cur-1)});
+document.addEventListener('keydown',e=>{if(/TEXTAREA|SELECT/.test(e.target.tagName))return;if(e.key==='ArrowRight')go(cur+1);if(e.key==='ArrowLeft')go(cur-1)});
 $('#chips').innerHTML=Object.keys(PRE).map(k=>`<button>${k}</button>`).join('');
-$('#chips').onclick=e=>{if(e.target.tagName==='BUTTON'){$('#inp').value=PRE[e.target.textContent];build()}};
+$('#chips').onclick=e=>{if(e.target.tagName==='BUTTON'){$('#inp').value=PRE[e.target.textContent];aiBuild()}};
 $('#inp').value=PRE['Pyramid'];build();
 </script></body></html>
