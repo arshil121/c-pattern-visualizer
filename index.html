@@ -43,7 +43,7 @@ input[type=range]{accent-color:var(--acc)}#sl{flex:1;min-width:120px}
 select{font:inherit;background:var(--card);color:var(--ink);border:1px solid var(--line);border-radius:9px;padding:6px 8px}
 #ed{height:430px;font-size:13.5px;line-height:1.6;margin:0}
 .vars{grid-template-columns:repeat(auto-fit,minmax(80px,1fr))}.v b{font-size:24px;overflow:hidden}
-.ai{display:grid;gap:8px;grid-template-columns:1fr 1fr;margin:10px 0 4px}.ai select,.ai input{width:100%;font:inherit;font-size:13px;background:var(--code);color:var(--ink);border:1px solid var(--line);border-radius:9px;padding:6px 8px}#st{min-height:20px}.lb{display:inline-block;background:var(--acc);color:#fff;border-radius:6px;padding:0 7px;font-size:12px;margin-right:6px}
+.ai{display:grid;gap:8px;grid-template-columns:1fr 1fr;margin:10px 0 4px}.ai select,.ai input{width:100%;font:inherit;font-size:13px;background:var(--code);color:var(--ink);border:1px solid var(--line);border-radius:9px;padding:6px 8px}#st{min-height:20px}.v.arr{grid-column:1/-1;text-align:left}.cells{display:flex;flex-wrap:wrap;gap:4px;margin-top:6px}.cell{min-width:36px;border:1px solid var(--line);border-radius:6px;padding:1px 5px;text-align:center;font:600 14px ui-monospace,Menlo,monospace}.cell small{display:block;font-size:10px;color:var(--mut)}.cell.hot{background:var(--hl);border-color:var(--acc);color:var(--acc)}.lb{display:inline-block;background:var(--acc);color:#fff;border-radius:6px;padding:0 7px;font-size:12px;margin-right:6px}
 </style></head><body><div class="wrap">
 <header><h1>Pattern <span>→</span> C Code Visualizer</h1><button id="th">🌓 Theme</button></header>
 <div class="top">
@@ -60,7 +60,7 @@ select{font:inherit;background:var(--card);color:var(--ink);border:1px solid var
  <div class="ctl" style="margin:0 0 12px"><label>Code to run: <select id="sel"><option value="0">Approach 1 · nested for</option><option value="1">Approach 2 · grid scan</option><option value="2">Approach 3 · while loops</option><option value="3">✍ My own code</option></select></label>
   <button id="eb">✏ Edit code</button><button class="p" id="runb" style="display:none">▶ Run this code</button></div>
  <div class="main"><div><div class="code" id="code2"></div><textarea id="ed" style="display:none" spellcheck="false"></textarea>
-  <div class="hint">Your own code can use int/char/float variables, for, while, do-while, if/else, break/continue, printf and putchar. Functions, arrays and scanf are not supported yet.</div></div>
+  <div class="hint">Your own code can use int/char/float variables, for, while, do-while, if/else, break/continue, printf and putchar. Also supported: functions (parameters and return values), 1D and 2D arrays, and #define numbers. Not supported yet: scanf, pointers, structs and strings.</div></div>
  <div><div class="vars" id="vars"></div><div class="msg" id="msg"></div><div class="out" id="out"></div>
   <div class="ctl"><button id="rs">⏮ Reset</button><button id="pv">◀ Prev</button><button class="p" id="nx">Next ▶</button><button id="nr">Next row ⏭</button><button id="pl">▶ Play</button>
    <label style="font-size:13px;color:var(--mut)">Speed <input type="range" id="sp" min="1" max="10" value="4"></label></div>
@@ -71,11 +71,11 @@ const $=s=>document.querySelector(s);
 const PRE={'Right triangle':'*\n**\n***\n****\n*****','Pyramid':'    *\n   ***\n  *****\n *******\n*********','Inverted':'*****\n****\n***\n**\n*','Number triangle':'1\n12\n123\n1234\n12345','Row numbers':'1\n22\n333\n4444','Diamond':'  *\n ***\n*****\n ***\n  *','Hollow square':'*****\n*   *\n*   *\n*   *\n*****','Hollow pyramid':'    *\n   * *\n  *   *\n *     *\n*********','Spaced stars':'* * * *\n* * *\n* *\n*','Alphabet':'A\nAB\nABC\nABCD','Binary triangle':'0\n1 1\n0 0 0\n1 1 1 1\n0 0 0 0 0','Binary rows':'1 1 1\n0 0 0\n1 1 1\n0 0 0'};
 const DESC=['Print the leading spaces with one loop, then the symbols with another. The most common textbook way.','Scan every column of every row and use if / else to decide: print a symbol or a space. Good for learning conditions.','Same logic as Approach 1 but with while loops, so initialization, condition and update are visible separately.'];
 const STARTER='#include <stdio.h>\n\nint main() {\n    int i, j;\n    for (i = 1; i <= 5; i++) {\n        for (j = 1; j <= i; j++) {\n            printf("*");\n        }\n        printf("\\n");\n    }\n    return 0;\n}';
-let gens=[],ok=[],mode=0,userCode='',activeCode='',steps=[],cur=0,timer=null,N=0,srcLines=[],names=[],lastErr='';
+let gens=[],ok=[],mode=0,userCode='',activeCode='',steps=[],cur=0,timer=null,N=0,srcLines=[],names=[],lastErr='',arrN=new Set();
 class Stop{}
 const esc=s=>s.replace(/\\/g,'\\\\').replace(/"/g,'\\"').replace(/%/g,'%%');
 const html=s=>String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
-const fv=v=>v===null?'?':typeof v=='number'?Math.round(v*1e6)/1e6:v;
+const fv=v=>v===null?'?':Array.isArray(v)?'['+v.map(fv).join(', ')+']':typeof v=='number'?Math.round(v*1e6)/1e6:v;
 function hl(l){return html(l).replace(/(\/\/.*$)|("(?:[^"\\]|\\.)*")|(#include.*)|\b(int|char|float|double|for|while|do|if|else|return|break|continue)\b|\b(\d+)\b|\b(printf|putchar|main)\b/g,(m,a,b,c,d,e)=>a?`<span class=c>${m}</span>`:b?`<span class=s>${m}</span>`:c||d?`<span class=k>${m}</span>`:e?`<span class=n>${m}</span>`:`<span class=f>${m}</span>`)}
 function paint(el,lines){el.innerHTML=lines.map((t,x)=>`<div class="ln"><i>${x+1}</i><span class="tx">${hl(t)||' '}</span></div>`).join('')}
 /* ---------- pattern analysis ---------- */
@@ -132,34 +132,50 @@ function runC(src){
  while(pos<src.length){re.lastIndex=pos;m=re.exec(src);if(!m||m.index!==pos)return{steps:[],err:`Line ${line}: unexpected character "${src[pos]}"`};pos=re.lastIndex;
   if(m[1]!==undefined){line+=(m[1].match(/\n/g)||[]).length;continue}
   tk.push({t:m[2]?'n':m[3]?'i':m[4]?'c':m[5]?'s':'o',v:m[0],l:line})}
- const V={},T={},steps=[];let out='',p=0,ops=0;
+ const defs={};src.replace(/^\s*#define\s+([A-Za-z_]\w*)\s+(-?\d+\.?\d*|'(?:\\.|[^'\\])')\s*$/gm,(m,a,b)=>{defs[a]=b});tk.forEach(t=>{if(t.t=='i'&&defs[t.v]){t.t=defs[t.v][0]=="'"?'c':'n';t.v=defs[t.v]}});
+ let V={};const G={},T={},steps=[];let out='',p=0,ops=0,depth=0,retv,returned=false;
  const dec=s=>s.slice(1,-1).replace(/\\(.)/g,(_,c)=>({n:'\n',t:'\t','0':'\0'}[c]??c));
  const vis=o=>'<b>“'+html(o).replace(/\n/g,'↵').replace(/ /g,'␣').replace(/\t/g,'⇥')+'”</b>';
  const tick=()=>{if(++ops>100000)throw new Stop()};
- function push(l,msg,ad=''){if(steps.length>=6000)throw new Stop();out+=ad;const pv=steps.length?steps[steps.length-1].v:{},ch=Object.keys(V).filter(k=>!(k in pv)||pv[k]!==V[k]);
-  steps.push({line:l,msg:msg+(ch.length&&!ad?' → '+ch.map(k=>`<b>${k} = ${fv(V[k])}</b>`).join(', '):''),v:{...V},t:{...T},out,ch,ad,row:ad.includes('\n')})}
- const get=n=>{if(!(n in V))throw Error(`variable "${n}" is used before it is declared`);return V[n]};
- const set=(n,v)=>{if(!(n in V))throw Error(`variable "${n}" is used before it is declared`);V[n]=T[n]=='float'?v:Math.trunc(v)};
+ const fr=n=>n in V?V:n in G?G:null;
+ const get=n=>{const f=fr(n);if(!f)throw Error(`variable "${n}" is used before it is declared`);return f[n]};
+ const set=(n,v)=>{const f=fr(n);if(!f)throw Error(`variable "${n}" is used before it is declared`);f[n]=T[n]=='float'?v:Math.trunc(v)};
+ const cp=a=>a.map(x=>Array.isArray(x)?cp(x):x),eq=(a,b)=>Array.isArray(a)?JSON.stringify(a)===JSON.stringify(b):a===b;
+ const snap=()=>{const o={};[G,V].forEach(s=>{for(const k in s)o[k]=Array.isArray(s[k])?cp(s[k]):s[k]});return o};
+ const dif=(a,b,nm)=>{const o=[],rec=(x,y,pre)=>x.forEach((e,i)=>{if(Array.isArray(e))rec(e,(y&&y[i])||[],pre+'['+i+']');else if(!y||y[i]!==e)o.push(`<b>${nm}${pre}[${i}] = ${fv(e)}</b>`)});rec(a,b||[],'');return o.slice(0,4).join(', ')};
+ function push(l,msg,ad=''){if(steps.length>=6000)throw new Stop();out+=ad;const sn=snap(),pv=steps.length?steps[steps.length-1].v:{},ch=Object.keys(sn).filter(k=>!(k in pv)||!eq(pv[k],sn[k]));
+  steps.push({line:l,msg:msg+(ch.length&&!ad?' → '+ch.map(k=>Array.isArray(sn[k])?(k in pv?dif(sn[k],pv[k],k):`<b>${k}</b> created`):`<b>${k} = ${fv(sn[k])}</b>`).filter(Boolean).join(', '):''),v:sn,t:{...T},out,ch,ad,row:ad.includes('\n')})}
  const ar=(o,x,y)=>{switch(o){case'+':return x+y;case'-':return x-y;case'*':return x*y;case'/':if(!y)throw Error('division by zero');return Number.isInteger(x)&&Number.isInteger(y)?Math.trunc(x/y):x/y;case'%':if(!y)throw Error('modulo by zero');return x%y;case'<':return+(x<y);case'>':return+(x>y);case'<=':return+(x<=y);case'>=':return+(x>=y);case'==':return+(x==y);case'!=':return+(x!=y)}};
  const pk=()=>tk[p]&&tk[p].v,nx=()=>tk[p++],eat=v=>pk()===v&&(p++,1);
  const need=v=>{if(!eat(v)){const t=tk[p]||tk[p-1]||{l:line};throw Error(`Line ${t.l}: expected "${v}" but found "${tk[p]?tk[p].v:'end of code'}"`)}};
  const sl=(a,b)=>tk.slice(a,b).map(t=>t.v).join(' ').replace(/(\w) (\+\+|--)/g,'$1$2').replace(/\( /g,'(').replace(/ \)/g,')').replace(/ ([;,])/g,'$1');
  const LV=[['||'],['&&'],['==','!='],['<','>','<=','>='],['+','-'],['*','/','%']];
+ const subs=()=>{const ix=[];while(pk()=='['){p++;ix.push(asg());need(']')}return ix};
+ const loc=(n,ix)=>{const a=get(n);if(!Array.isArray(a))throw Error(`"${n}" is not an array`);let c=a,k=0;for(let x=0;x<ix.length;x++){const i=ix[x]();if(!Number.isInteger(i)||i<0||i>=c.length)throw Error(`${n}[${i}] is outside the array (size ${c.length})`);if(x<ix.length-1){c=c[i];if(!Array.isArray(c))throw Error(`too many [ ] for "${n}"`)}else k=i}return[c,k]};
  const un=()=>{const t=nx();if(!t)throw Error('The expression ended unexpectedly');
   if(t.v=='!'){const e=un();return()=>+!e()}if(t.v=='-'){const e=un();return()=>-e()}if(t.v=='+')return un();
-  if(t.v=='++'||t.v=='--'){const n=nx().v,d=t.v=='++'?1:-1;return()=>{set(n,get(n)+d);return V[n]}}
+  if(t.v=='++'||t.v=='--'){const n=nx().v,ix=subs(),d=t.v=='++'?1:-1;return ix.length?()=>{const[c,k]=loc(n,ix);c[k]=(c[k]||0)+d;return c[k]}:()=>{set(n,get(n)+d);return get(n)}}
   if(t.v=='('){const e=asg();need(')');return e}
   if(t.t=='n'){const x=+t.v;return()=>x}
   if(t.t=='c'){const x=dec(t.v).charCodeAt(0);return()=>x}
-  if(t.t=='i'){if(pk()=='++'||pk()=='--'){const d=nx().v=='++'?1:-1;return()=>{const o=get(t.v);set(t.v,o+d);return o}}return()=>get(t.v)}
+  if(t.t=='i'){if(pk()=='('){p++;const as=[];while(pk()!==')'){if(p>=tk.length)throw Error('Missing ")"');as.push(asg());if(!eat(','))break}need(')');const nm=t.v;return()=>call(nm,as.map(g=>g()))}
+   const ix=subs();if(pk()=='++'||pk()=='--'){const d=nx().v=='++'?1:-1;return ix.length?()=>{const[c,k]=loc(t.v,ix);const o=c[k]||0;c[k]=o+d;return o}:()=>{const o=get(t.v);set(t.v,o+d);return o}}
+   return ix.length?()=>{const[c,k]=loc(t.v,ix);return c[k]}:()=>get(t.v)}
   throw Error(`Line ${t.l}: unexpected "${t.v}"`)};
  const bn=l=>{if(l==6)return un();let a=bn(l+1);while(LV[l].includes(pk())){const o=nx().v,A=a,B=bn(l+1);a=o=='||'?()=>+(A()||B()):o=='&&'?()=>+(A()&&B()):()=>ar(o,A(),B())}return a};
- const asg=()=>{const t=tk[p],n2=tk[p+1];if(t&&t.t=='i'&&n2&&['=','+=','-=','*=','/=','%='].includes(n2.v)){p+=2;const op=n2.v,r=asg();return()=>{const v=op=='='?r():ar(op[0],get(t.v),r());set(t.v,v);return V[t.v]}}return bn(0)};
- const cond=()=>{const a=p,f=asg(),toks=tk.slice(a,p);return{f,raw:sl(a,p),tx:()=>toks.map(t=>t.t=='i'&&t.v in V?fv(V[t.v]):t.v).join(' ')}};
+ const asg=()=>{const t=tk[p];if(t&&t.t=='i'&&tk[p+1]&&tk[p+1].v!='('){const p0=p;p++;const ix=subs(),o=tk[p];
+  if(o&&['=','+=','-=','*=','/=','%='].includes(o.v)){p++;const r=asg();
+   return ix.length?()=>{const[c,k]=loc(t.v,ix);const v=o.v=='='?r():ar(o.v[0],c[k],r());c[k]=T[t.v]=='float'?v:Math.trunc(v);return c[k]}:()=>{const v=o.v=='='?r():ar(o.v[0],get(t.v),r());set(t.v,v);return get(t.v)}}
+  p=p0}return bn(0)};
+ const cond=()=>{const a=p,f=asg(),toks=tk.slice(a,p);return{f,raw:sl(a,p),tx:()=>toks.map((t,x)=>t.t=='i'&&fr(t.v)&&!Array.isArray(fr(t.v)[t.v])&&!(toks[x+1]&&toks[x+1].v=='(')?fv(fr(t.v)[t.v]):t.v).join(' ')}};
  const TY=['int','char','float','double','long','short','unsigned','signed'];
+ const il=()=>{need('{');const es=[];while(pk()!='}'){es.push(pk()=='{'?il():asg());if(!eat(','))break}need('}');return()=>es.map(e=>e())};
  const decl=()=>{const a=p;let ty='int';while(TY.includes(pk())){const w=nx().v;if(w=='char')ty='char';if(w=='float'||w=='double')ty='float'}
-  const ds=[];do{const n=nx();if(!n||n.t!='i')throw Error(`Line ${(n||tk[p-1]).l}: expected a variable name`);if(pk()=='[')throw Error(`Line ${n.l}: arrays are not supported yet`);ds.push([n.v,eat('=')?asg():null])}while(eat(','));
-  return{f:()=>ds.forEach(([n,e])=>{T[n]=ty;V[n]=null;if(e){const v=e();V[n]=ty=='float'?v:Math.trunc(v)}}),raw:sl(a,p),decl:1}};
+  const ds=[];do{const n=nx();if(!n||n.t!='i')throw Error(`Line ${(n||tk[p-1]).l}: expected a variable name`);const dm=[];while(eat('[')){dm.push(pk()==']'?null:asg());need(']')}
+   let ini=null;if(eat('='))ini=dm.length?il():asg();ds.push([n.v,dm,ini])}while(eat(','));
+  const trn=x=>ty=='float'?x:Math.trunc(x);
+  const bd=(sz,iv)=>{const m=sz[0]!=null?sz[0]:(iv?iv.length:0);return Array.from({length:m},(_,x)=>sz.length>1?bd(sz.slice(1),iv?(iv[x]||[]):undefined):(iv?(x<iv.length?trn(iv[x]):0):null))};
+  return{f:()=>ds.forEach(([n,dm,ini])=>{T[n]=ty;if(dm.length){V[n]=bd(dm.map(d=>d?d():null),ini?ini():undefined);return}V[n]=null;if(ini)V[n]=trn(ini())}),raw:sl(a,p),decl:1,l:tk[a].l}};
  const simple=()=>{if(TY.includes(pk()))return decl();const a=p,fs=[asg()];while(eat(','))fs.push(asg());return{f:()=>fs.forEach(f=>f()),raw:sl(a,p)}};
  const fmt=(s,args)=>{let k=0;return s.replace(/%([-0]?)(\d*)(?:\.(\d+))?l?([dicsfxu%])/g,(m,fl,w,pr,c)=>{if(c=='%')return'%';const a=args[k++];let r;
   if(c=='c')r=String.fromCharCode(a);else if(c=='s')r=''+a;else if(c=='f')r=(+a).toFixed(pr===undefined?6:+pr);else if(c=='x')r=Math.trunc(a).toString(16);else r=''+Math.trunc(a);
@@ -179,19 +195,33 @@ function runC(src){
    return()=>{const tx=c.tx(),o=c.f();push(L,`<b>if</b> check <b>${c.raw}</b> → ${tx} → <b>${o?'true: run the if-part':'false: '+(e?'run the else-part':'skip it')}</b>`);return o?a():e&&e()}}
   if(v=='break'){p++;need(';');return()=>(push(L,'<b>break</b> → jump out of the loop'),'b')}
   if(v=='continue'){p++;need(';');return()=>(push(L,'<b>continue</b> → skip to the next round of the loop'),'c')}
-  if(v=='return'){p++;if(!eat(';')){asg();need(';')}return()=>(push(L,'<b>return</b> → the program ends'),'r')}
+  if(v=='return'){p++;let e=null;if(!eat(';')){e=asg();need(';')}return()=>{const x=e?e():undefined;retv=x;returned=true;push(L,depth>1?`<b>return ${x===undefined?'':fv(x)}</b> → go back to the caller`:'<b>return</b> → the program ends');return'r'}}
   if(['scanf','gets','getchar'].includes(v))throw Error(`Line ${L}: ${v} (user input) is not supported yet. Put the values directly in the code.`);
   if(v=='putchar'){p++;need('(');const e=asg();need(')');need(';');return()=>{const c=String.fromCharCode(e());push(L,`<b>putchar</b> prints ${vis(c)}`,c)}}
   if(v=='printf'){p++;need('(');const s=nx();if(!s||s.t!='s')throw Error(`Line ${L}: printf needs a "text" in quotes first`);const f=dec(s.v),as=[];
    while(eat(',')){if(tk[p]&&tk[p].t=='s'){const z=dec(nx().v);as.push(()=>z)}else as.push(asg())}need(')');need(';');
    return()=>{const o=fmt(f,as.map(g=>g()));push(L,`<b>printf</b> prints ${vis(o)}`,o)}}
   const s=simple();need(';');return()=>{s.f();push(L,s.decl?`Declare <b>${s.raw}</b>`:`Run <b>${s.raw}</b>`)}};
- try{
-  const mi=tk.findIndex((t,x)=>t.v=='main'&&tk[x+1]&&tk[x+1].v=='(');if(mi<0)throw Error('Could not find "int main()" in the code');
-  p=mi+1;while(pk()!==')'){if(p>=tk.length)throw Error('Missing ")" after main(');p++}p++;
-  if(pk()!='{')throw Error(`Line ${tk[p]?tk[p].l:line}: expected "{" after main()`);
-  const body=stmt(),end=tk[p-1].l;
-  try{body();push(end,'🎉 <b>Program finished.</b> Compare the output with your pattern.')}
+ const fns={},pre=[];
+ const call=(name,av)=>{const f=fns[name];if(!f)throw Error(`function "${name}" is not defined`);if(av.length!=f.ps.length)throw Error(`${name}() expects ${f.ps.length} argument(s) but got ${av.length}`);if(depth>=100)throw Error('too many nested calls (infinite recursion?)');
+  const sv=V;V={};f.ps.forEach((q,x)=>{V[q.n]=q.arr?av[x]:(q.ty=='float'?av[x]:Math.trunc(av[x]));T[q.n]=q.ty});depth++;
+  if(name!='main')push(f.line,`<b>Call ${name}(${av.map(fv).join(', ')})</b> → the function gets its own variables`);
+  returned=false;retv=undefined;try{f.body()}catch(e){V=sv;depth--;throw e}
+  if(!returned&&name!='main')push(f.end,`<b>${name}</b> ends → back to the caller`);
+  const rv=retv;V=sv;depth--;returned=false;retv=undefined;return rv===undefined?0:rv};
+ try{const FT=[...TY,'void'];
+  while(p<tk.length){
+   if(!FT.includes(pk()))throw Error(`Line ${tk[p].l}: unexpected "${tk[p].v}" outside a function`);
+   const p0=p;while(FT.includes(pk()))p++;const nm=tk[p],l0=nm?nm.l:0;
+   if(nm&&nm.t=='i'&&tk[p+1]&&tk[p+1].v=='('){p+=2;const ps=[];if(pk()=='void'&&tk[p+1]&&tk[p+1].v==')')p++;
+    while(pk()!==')'){if(p>=tk.length)throw Error('Missing ")"');let ty='int';while(TY.includes(pk())){const w=nx().v;if(w=='char')ty='char';if(w=='float'||w=='double')ty='float'}
+     const q=nx();if(!q||q.t!='i')throw Error(`Line ${(q||nm).l}: expected a parameter name`);let arr=false;while(eat('[')){arr=true;while(pk()!==']'&&p<tk.length)p++;need(']')}ps.push({n:q.v,ty,arr});if(!eat(','))break}
+    need(')');if(eat(';'))continue;
+    if(pk()!='{')throw Error(`Line ${tk[p]?tk[p].l:l0}: expected "{" after ${nm.v}()`);
+    const body=stmt();fns[nm.v]={ps,body,line:l0,end:tk[p-1].l}}
+   else{p=p0;const d=decl();need(';');pre.push(d)}}
+  if(!fns.main)throw Error('Could not find "int main()" in the code');
+  try{V=G;pre.forEach(d=>{d.f();push(d.l,`Global variable: <b>${d.raw}</b>`)});V={};call('main',[]);push(fns.main.end,'🎉 <b>Program finished.</b> Compare the output with your pattern.')}
   catch(e){if(e instanceof Stop)return{steps,trunc:1};const b=steps.length?steps[steps.length-1]:{line:1,v:{},t:{},out:''};steps.push({...b,msg:'❌ '+e.message,ch:[],ad:'',row:false});return{steps,err:e.message}}
  }catch(e){return{steps:[],err:e.message}}
  return{steps}}
@@ -209,18 +239,22 @@ function pick(k){stop();mode=k;$('#sel').value=k;[...$('#tabs').children].forEac
  if(k<3){$('#desc').textContent=DESC[k];paint($('#code'),gens[k].split('\n'));edit(false);loadCode(gens[k])}
  else{$('#ed').value=userCode||STARTER;edit(true)}}
 function loadCode(c){activeCode=c;paint($('#code2'),c.split('\n'));const r=runC(c);steps=r.steps;lastErr=r.err||'';
- $('#bd').innerHTML=r.err?`<span class="bad">❌ ${html(r.err)}</span>`:r.trunc?'<span class="bad">⚠ stopped after too many steps (infinite loop?)</span>':match(r)?'<span class="good">✓ output matches your pattern</span>':'<span class="bad">⚠ output differs from your pattern</span>';
+ $('#bd').innerHTML=r.err?`<span class="bad">❌ ${html(r.err)}</span>`:r.trunc?'<span class="bad">⚠ stopped after too many steps (infinite loop?)</span>':mode==3?`<span class="good">✓ Your code ran successfully${match(r)?' (same output as the pattern in step 1)':''}</span>`:match(r)?'<span class="good">✓ output matches your pattern</span>':'<span class="bad">⚠ output differs from your pattern</span>';
  names=[...new Set(steps.flatMap(s=>Object.keys(s.v)))].slice(0,12);
- $('#vars').innerHTML=names.map(k=>`<div class="v"><small>${k}</small><b>–</b></div>`).join('');
+ arrN=new Set(names.filter(k=>steps.some(s=>Array.isArray(s.v[k]))));$('#vars').innerHTML=names.map(k=>arrN.has(k)?`<div class="v arr"><small>${k}</small><div class="cw">–</div></div>`:`<div class="v"><small>${k}</small><b>–</b></div>`).join('');
  $('#sl').max=Math.max(0,steps.length-1);cur=0;show()}
+function cellsHtml(a,pv){const cell=(v,i,o)=>`<span class="cell${o!==undefined&&o!==v?' hot':''}"><small>${i}</small>${fv(v)}</span>`;
+ const one=(r,o)=>`<div class="cells">${r.slice(0,40).map((v,i)=>cell(v,i,Array.isArray(o)?o[i]:undefined)).join('')}${r.length>40?'<span class="cell">…</span>':''}</div>`;
+ return Array.isArray(a[0])?a.slice(0,20).map((r,y)=>one(r,pv&&pv[y])).join(''):one(a,pv)}
 function show(){
  if(!steps.length){$('#msg').innerHTML='<span class="bad">'+html(lastErr)+'</span>';$('#out').innerHTML='';$('#cnt').textContent='';['rs','pv','nx','nr','pl'].forEach(x=>$('#'+x).disabled=true);return}
  $('#rs').disabled=$('#pl').disabled=false;const st=steps[cur];
  $('#sl').value=cur;$('#cnt').textContent=`Step ${cur+1} / ${steps.length}`;
  document.querySelectorAll('#code2 .ln').forEach((e,x)=>e.classList.toggle('on',x===st.line-1));
  const box=$('#code2'),el=box.children[st.line-1];if(el)box.scrollTop=el.offsetTop-box.clientHeight/2;
- names.forEach((k,x)=>{const d=$('#vars').children[x],b=d.querySelector('b'),val=st.v[k];
-  b.textContent=!(k in st.v)?'–':val===null?'?':(st.t[k]=='char'&&val>=32&&val<127?`'${String.fromCharCode(val)}'`:fv(val));
+ names.forEach((k,x)=>{const d=$('#vars').children[x],val=st.v[k],pvs=cur?steps[cur-1].v[k]:undefined;
+  if(arrN.has(k))d.querySelector('.cw').innerHTML=Array.isArray(val)?cellsHtml(val,pvs):'–';
+  else{const b=d.querySelector('b');b.textContent=!(k in st.v)?'–':val===null?'?':(st.t[k]=='char'&&val>=32&&val<127?`'${String.fromCharCode(val)}'`:fv(val))}
   d.classList.remove('chg');if(st.ch.includes(k)){void d.offsetWidth;d.classList.add('chg')}});
  $('#msg').innerHTML=`<span class="lb">Line ${st.line}</span>${st.msg}`;
  const o=st.out,n=st.ad.length;let h='';
