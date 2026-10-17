@@ -269,13 +269,13 @@ $('#sl').oninput=e=>{stop();go(+e.target.value)};
 $('#pl').onclick=()=>{if(timer)return stop();if(cur>=steps.length-1)go(0);$('#pl').textContent='⏸ Pause';timer=setInterval(()=>{if(cur>=steps.length-1)return stop();go(cur+1)},1100-$('#sp').value*100)};
 $('#sp').oninput=()=>{if(timer){stop();$('#pl').onclick()}};
 /* ---------- AI engine (fixed, hidden from the UI) with offline fallback ---------- */
-const AI_URL='https://api.groq.com/openai/v1/chat/completions';
-const AI_KEY='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';
+const AI_URL='https://pattern-ai.shoab-279.workers.dev'; // paste your Cloudflare Worker address here (the secret key stays in the Worker, never in this file)
 const AI_MODELS=['llama-3.3-70b-versatile','openai/gpt-oss-120b','llama-3.1-8b-instant'];
 const D0=DESC.slice(),N0=['Approach 1 · nested for','Approach 2 · grid scan','Approach 3 · while loops'];
 async function ask(msgs){let err;
+ if(/YOUR-WORKER/.test(AI_URL))throw Error('the AI proxy address is not set up yet');
  for(const model of AI_MODELS){try{
-  const r=await fetch(AI_URL,{method:'POST',signal:AbortSignal.timeout?AbortSignal.timeout(90000):undefined,headers:{'Content-Type':'application/json',Authorization:'Bearer '+AI_KEY},body:JSON.stringify({model,messages:msgs,temperature:0.2})});
+  const r=await fetch(AI_URL,{method:'POST',signal:AbortSignal.timeout?AbortSignal.timeout(90000):undefined,headers:{'Content-Type':'application/json'},body:JSON.stringify({model,messages:msgs,temperature:0.2})});
   const j=await r.json().catch(()=>({}));if(!r.ok)throw Error((j.error&&(j.error.message||j.error))||'HTTP '+r.status);return j.choices[0].message.content}
  catch(e){err=e;if(/fetch|network|abort|api key|auth|401|403/i.test(e.message))break}}
  throw err}
